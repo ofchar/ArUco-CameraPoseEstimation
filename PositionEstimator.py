@@ -1,27 +1,13 @@
-# import the necessary packages
 from imutils.video import VideoStream
-import argparse
 import imutils
 import time
 import cv2
-import sys
 import numpy as np
-import math
+import os
+import argparse
+import sys
 
-
-# Loads camera matrix and distortion coefficients.
-# FILE_STORAGE_READ
-cv_file = cv2.FileStorage("C:\\Users\\mat28\\Desktop\\calibration", cv2.FILE_STORAGE_READ)
-
-# note we also have to specify the type to retrieve other wise we only get a
-# FileNode object back instead of a matrix
-mtx = cv_file.getNode("K").mat()
-dist = cv_file.getNode("D").mat()
-
-cv_file.release()
-
-
-# define names of each possible ArUco tag OpenCV supports
+# define names of ArUco tags supported by OpenCV.
 ARUCO_DICT = {
 	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
 	"DICT_4X4_100": cv2.aruco.DICT_4X4_100,
@@ -46,81 +32,114 @@ ARUCO_DICT = {
 	"DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
 }
 
-# adjust dictionary parameters for better marker detection
-parameters = cv2.aruco.DetectorParameters_create()
-parameters.cornerRefinementMethod = 3
-parameters.errorCorrectionRate = 0.2
-
-arucoDict = cv2.aruco.Dictionary_get(ARUCO_DICT["DICT_4X4_50"])
-arucoParams = cv2.aruco.DetectorParameters_create()
-
-
-
-markerDict = {	1: [2.10,1.85,0.4],
+# define all known tags, together with their x, y, z positions.
+markerDict = {
+				1: [2.10,1.85,0.4],
 				2: [4,5,6]
 			}
 
 
 
+def checkFileExistence(path):
+	exists = os.path.exists(path)
+
+	if not exists:
+		sys.exit("Calibration file at path: " + path + " does not exist :(")
+
+# Load camera matrix and distortion coefficients from file specified in path.
+def loadCalibrationData(path):
+	calibrationFile = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
+
+	mtx = calibrationFile.getNode("mtx").mat()
+	dist = calibrationFile.getNode("dist").mat()
+
+	calibrationFile.release()
+
+	return mtx, dist
+
+def checkArucoDictionaryExistence(type):
+	if not type in ARUCO_DICT:
+		sys.exit("Type " + type + " is not supported. Sorry :(")
+
+def getArguments():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-t", "--type", type = str, default = "DICT_4X4_50", help = "(optional) Type of ArUco tags")
+	parser.add_argument('-c', "--calibration", type = str, default = "calibration", help='(optional) Path to camera calibration file')
+	parser.add_argument('-s', "--size", type = float, default = 0.1, help='(optional) Size of the markers in meters')
+
+	return parser.parse_args()
 
 
-# initialize the video stream and allow the camera sensor to warm up
-vs = VideoStream(src=0).start()
-time.sleep(2.0)
+def doMagic(mtx, dist, dictionary, params, markerSize):
+	# Initialize videoStream
+	videoStream = VideoStream(src=0).start()
+	time.sleep(1.0)
+
+	while True:
+		frame = videoStream.read()
+		frame = imutils.resize(frame, width=1920)
+
+		corners, ids, _ = cv2.aruco.detectMarkers(frame, dictionary, parameters=params)
+
+		# if any markers have been detected
+		if len(corners) > 0:
+			ids = ids.flatten()
+
+			for (corner, id) in zip(corners, ids):
+				rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corner, markerSize, mtx, dist)
+
+				frame = cv2.aruco.drawAxis(frame, mtx, dist, rvec, tvec, markerSize)
+
+				(rvec - tvec).any()
 
 
+				dst, _ = cv2.Rodrigues(rvec[0][0])
 
-# loop over the frames from the video stream
-while True:
-	frame = vs.read()
-	frame = imutils.resize(frame, width=1920)
+				dst = cv2.transpose(dst)
 
-	# detect ArUco markers in the input frame
-	(corners, ids, rejected) = cv2.aruco.detectMarkers(frame,
-		arucoDict, parameters=arucoParams)
+				cameraRotationVector = cv2.Rodrigues(dst)
 
-	# verify *at least* one ArUco marker was detected
-	if len(corners) > 0:
-		# flatten the ArUco IDs list
-		ids = ids.flatten()
+				cameraTranslationVector = cv2.transpose(-dst) @ tvec[0][0]
 
-		for (markerCorner, markerID) in zip(corners, ids):
-			rotation_vectors, translation_vectors, _objPoints = cv2.aruco.estimatePoseSingleMarkers(markerCorner, 0.1, mtx, dist)
-
-			frame = cv2.aruco.drawAxis(frame, mtx, dist, rotation_vectors, translation_vectors, 0.1)
-
-			(rotation_vectors - translation_vectors).any()
-
-			# print(translation_vectors[0][0])
-			# print(markerDict[markerID])
+				x = markerDict[id][0] + cameraTranslationVector[0]
+				y = markerDict[id][1] + cameraTranslationVector[1]
+				z = markerDict[id][2] + cameraTranslationVector[2]
+				print(x, y, z, sep=" ")
 
 
+		cv2.imshow("Frame", frame)
+		key = cv2.waitKey(1) & 0xFF
 
-			dst, jacobian = cv2.Rodrigues(rotation_vectors[0][0])
+		time.sleep(0.1)
 
-			dst = cv2.transpose(dst)
+		if key == ord("q"):
+			break
 
-			cameraRotationVector = cv2.Rodrigues(dst)
+	cv2.destroyAllWindows()
+	videoStream.stop()
 
-			cameraTranslationVector = cv2.transpose(-dst) @ translation_vectors[0][0]
 
-			# print(cameraTranslationVector)
+def main():
+	args = getArguments()
+	# Determine path to camera calibration file.
+	path = args.calibration if args.calibration[0] == '\\' else os.getcwd() + '\\' + args.calibration
 
-			x = markerDict[markerID][0] + cameraTranslationVector[0]
-			y = markerDict[markerID][1] + cameraTranslationVector[1]
-			z = markerDict[markerID][2] + cameraTranslationVector[2]
-			print(x, y, z, sep=" ")
+    # Load camera calibration.
+	checkFileExistence(path)
+	mtx, dist = loadCalibrationData(path)
 
-	# show the output frame
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1) & 0xFF
+	# Prepare aruco dictionary
+	checkArucoDictionaryExistence(args.type)
+	dictionary = cv2.aruco.Dictionary_get(ARUCO_DICT[args.type])
 
-	time.sleep(0.1)
+	# Prepare detector params
+	params = cv2.aruco.DetectorParameters_create()
+	params.cornerRefinementMethod = 3
+	params.errorCorrectionRate = 0.2
 
-	# if the `q` key was pressed, break from the loop
-	if key == ord("q"):
-		break
 
-# do a bit of cleanup
-cv2.destroyAllWindows()
-vs.stop()
+	doMagic(mtx, dist, dictionary, params, args.size)
+
+
+if __name__ == "__main__":
+	main()
