@@ -7,6 +7,8 @@ import os
 import argparse
 import sys
 
+frameWidth=1280
+
 # define names of ArUco tags supported by OpenCV.
 ARUCO_DICT = {
 	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
@@ -34,7 +36,7 @@ ARUCO_DICT = {
 
 # define all known tags, together with their x, y, z positions.
 markerDict = {
-				1: [2.10,1.85,0.4],
+				1: [2.04,1.64,0.4],
 				2: [4,5,6]
 			}
 
@@ -46,6 +48,11 @@ def checkFileExistence(path):
 	if not exists:
 		sys.exit("Calibration file at path: " + path + " does not exist :(")
 
+def scaleCameraMatrix(mtx, newWidth, calibWidth=1920):
+	scale = newWidth / calibWidth
+
+	return mtx * scale
+
 # Load camera matrix and distortion coefficients from file specified in path.
 def loadCalibrationData(path):
 	calibrationFile = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
@@ -54,6 +61,8 @@ def loadCalibrationData(path):
 	dist = calibrationFile.getNode("dist").mat()
 
 	calibrationFile.release()
+
+	mtx = scaleCameraMatrix(mtx, frameWidth)
 
 	return mtx, dist
 
@@ -77,7 +86,7 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 
 	while True:
 		frame = videoStream.read()
-		frame = imutils.resize(frame, width=1920)
+		frame = imutils.resize(frame, width=frameWidth)
 
 		corners, ids, _ = cv2.aruco.detectMarkers(frame, dictionary, parameters=params)
 
@@ -95,22 +104,21 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 
 				dst, _ = cv2.Rodrigues(rvec[0][0])
 
-				dst = cv2.transpose(dst)
-
-				cameraRotationVector = cv2.Rodrigues(dst)
-
 				cameraTranslationVector = cv2.transpose(-dst) @ tvec[0][0]
 
-				x = markerDict[id][0] + cameraTranslationVector[0]
-				y = markerDict[id][1] + cameraTranslationVector[1]
-				z = markerDict[id][2] + cameraTranslationVector[2]
-				print(x, y, z, sep=" ")
+				try:
+					x = markerDict[id][0] + cameraTranslationVector[0]
+					y = markerDict[id][1] + cameraTranslationVector[1]
+					z = markerDict[id][2] + cameraTranslationVector[2]
+					print(x, y, z, sep=" ")
+				except KeyError:
+					pass
+
+				print('')
 
 
 		cv2.imshow("Frame", frame)
 		key = cv2.waitKey(1) & 0xFF
-
-		time.sleep(0.1)
 
 		if key == ord("q"):
 			break
