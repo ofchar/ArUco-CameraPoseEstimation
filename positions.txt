@@ -1,3 +1,6 @@
+# Positions of markers together with their axes in regards to world's axes
+# Axes: 0 => x, 1 => y, 2 => z
+# {marker_id} {position_x},{position_y},{position_z} {axis_x}, {axis_y}, {axis_z}
 1 0,1.40,1.62 2,0,1
 2 1.80,3.05,0.4 0,1,2
 0 1.60,3.05,0 0,1,2

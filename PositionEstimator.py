@@ -90,6 +90,9 @@ def getArguments():
 def loadMarkersPositions(path):
 	with open(path) as f:
 		for line in f:
+			if line[0] == '#':
+				continue
+
 			(key, pos, ax) = line.split()
 			positions =  list(map(float, pos.split(',')))
 			axes = list(map(int, ax.split(',')))
