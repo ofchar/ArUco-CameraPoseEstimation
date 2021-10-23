@@ -45,9 +45,6 @@ class Marker:
 		self.axis_y = axis_y
 		self.axis_z = axis_z
 
-# define all known tags, together with their x, y, z positions.
-markerDict = {}
-
 
 
 def checkFileExistence(path):
@@ -88,6 +85,8 @@ def getArguments():
 	return parser.parse_args()
 
 def loadMarkersPositions(path):
+	markerDict = {}
+
 	with open(path) as f:
 		for line in f:
 			if line[0] == '#':
@@ -100,10 +99,9 @@ def loadMarkersPositions(path):
 			markerDict[int(key)] = Marker(positions[0], positions[1], positions[2],
 											axes[0], axes[1], axes[2])
 
+	return markerDict
 
-
-def doMagic(mtx, dist, dictionary, params, markerSize):
-	# Initialize videoStream
+def doMagic(mtx, dist, dictionary, params, markerSize, markerDict):
 	videoStream = VideoStream(src=0).start()
 	time.sleep(1.0)
 
@@ -126,9 +124,6 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 				rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corner, markerSize, mtx, dist)
 
 				frame = cv2.aruco.drawAxis(frame, mtx, dist, rvec, tvec, markerSize)
-
-				(rvec - tvec).any()
-
 
 				dst, _ = cv2.Rodrigues(rvec[0][0])
 
@@ -162,29 +157,27 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 
 def main():
 	args = getArguments()
-	# Determine path to camera calibration file.
-	calibrationPath = args.calibration if args.calibration[0] == '\\' else os.getcwd() + '\\' + args.calibration
 
     # Load camera calibration.
-	checkFileExistence(calibrationPath)
-	mtx, dist = loadCalibrationData(calibrationPath)
+	checkFileExistence(args.calibration)
+	mtx, dist = loadCalibrationData(args.calibration)
+
+
+	# Load marker's positions
+	checkFileExistence(args.positions)
+	markerDict = loadMarkersPositions(args.positions)
+
 
 	# Prepare aruco dictionary
 	checkArucoDictionaryExistence(args.type)
 	dictionary = cv2.aruco.Dictionary_get(ARUCO_DICT[args.type])
 
+
 	# Prepare detector params
 	params = cv2.aruco.DetectorParameters_create()
-	params.cornerRefinementMethod = 3
-	params.errorCorrectionRate = 0.2
 
-	# Determine path to marker's positions file.
-	positionsFile = args.positions if args.positions[0] == '\\' else os.getcwd() + '\\' + args.positions
 
-	# Load marker's positions
-	loadMarkersPositions(args.positions)
-
-	doMagic(mtx, dist, dictionary, params, args.size)
+	doMagic(mtx, dist, dictionary, params, args.size, markerDict)
 
 if __name__ == "__main__":
 	main()
