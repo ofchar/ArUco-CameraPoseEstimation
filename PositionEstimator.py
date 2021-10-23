@@ -78,9 +78,9 @@ def checkArucoDictionaryExistence(type):
 def getArguments():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-t", "--type", type = str, default = "DICT_4X4_50", help = "(optional) Type of ArUco tags")
-	parser.add_argument('-c', "--calibration", type = str, default = "calibration", help='(optional) Path to camera calibration file')
-	parser.add_argument('-s', "--size", type = float, default = 0.1, help='(optional) Size of the markers in meters')
-	parser.add_argument('-p', "--positions", type = str, default = "positions.txt", help='(optional) Path to file with markers positions')
+	parser.add_argument('-c', "--calibration", type = str, default = "calibration", help = '(optional) Path to camera calibration file')
+	parser.add_argument('-s', "--size", type = float, default = 0.1, help = '(optional) Size of the markers in meters')
+	parser.add_argument('-p', "--positions", type = str, default = "positions.txt", help = '(optional) Path to file with markers positions')
 
 	return parser.parse_args()
 
@@ -102,14 +102,14 @@ def loadMarkersPositions(path):
 	return markerDict
 
 def doMagic(mtx, dist, dictionary, params, markerSize, markerDict):
-	videoStream = VideoStream(src=0).start()
+	videoStream = VideoStream(src = 0).start()
 	time.sleep(1.0)
 
 	while True:
 		frame = videoStream.read()
-		frame = imutils.resize(frame, width=frameWidth)
+		frame = imutils.resize(frame, width = frameWidth)
 
-		corners, ids, _ = cv2.aruco.detectMarkers(frame, dictionary, parameters=params)
+		corners, ids, _ = cv2.aruco.detectMarkers(frame, dictionary, parameters = params)
 
 		x = 0
 		y = 0

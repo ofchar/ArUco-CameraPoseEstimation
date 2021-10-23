@@ -8,18 +8,18 @@ import os
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 
-def calibrate(dirpath, image_format, square_size, width, height):
+def calibrate(dirpath, imageFormat, squareSize, width, height):
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(8,6,0)
-    objp = np.zeros((height*width, 3), np.float32)
+    objp = np.zeros((height * width, 3), np.float32)
     objp[:, :2] = np.mgrid[0:width, 0:height].T.reshape(-1, 2)
 
-    objp = objp * square_size
+    objp = objp * squareSize
 
     # Arrays to store object points and image points from all the images.
     objpoints = []  # 3d point in real world space
     imgpoints = []  # 2d points in image plane.
 
-    images = glob.glob(dirpath + '/*.' + image_format)
+    images = glob.glob(dirpath + '/*.' + imageFormat)
 
     for fname in images:
         img = cv2.imread(fname)
