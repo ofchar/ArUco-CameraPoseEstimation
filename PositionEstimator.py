@@ -34,6 +34,17 @@ ARUCO_DICT = {
 	"DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
 }
 
+# define marker class, to hold information about marker position
+# and orientation in regard to world's coordinate system
+class Marker:
+	def __init__(self, position_x, position_y, position_z, axis_x, axis_y, axis_z):
+		self.position_x = position_x
+		self.position_y = position_y
+		self.position_z = position_z
+		self.axis_x = axis_x
+		self.axis_y = axis_y
+		self.axis_z = axis_z
+
 # define all known tags, together with their x, y, z positions.
 markerDict = {}
 
@@ -79,12 +90,12 @@ def getArguments():
 def loadMarkersPositions(path):
 	with open(path) as f:
 		for line in f:
-			(key, val) = line.split()
-			a_list = val.split(',')
-			map_object = map(float, a_list)
+			(key, pos, ax) = line.split()
+			positions =  list(map(float, pos.split(',')))
+			axes = list(map(int, ax.split(',')))
 
-			list_of_integers = list(map_object)
-			markerDict[int(key)] = list_of_integers
+			markerDict[int(key)] = Marker(positions[0], positions[1], positions[2],
+											axes[0], axes[1], axes[2])
 
 
 
@@ -121,11 +132,10 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 				cameraTranslationVector = cv2.transpose(-dst) @ tvec[0][0]
 
 				try:
-					x = x + markerDict[id][0] + cameraTranslationVector[2]
-					y = y + markerDict[id][1] + cameraTranslationVector[0]
-					z = z + markerDict[id][2] + cameraTranslationVector[1]
+					x = x + markerDict[id].position_x + cameraTranslationVector[markerDict[id].axis_x]
+					y = y + markerDict[id].position_y + cameraTranslationVector[markerDict[id].axis_y]
+					z = z + markerDict[id].position_z + cameraTranslationVector[markerDict[id].axis_z]
 
-					print(id, markerDict[id][0] + cameraTranslationVector[0], markerDict[id][1] + cameraTranslationVector[1], markerDict[id][2] + cameraTranslationVector[2], sep = " ")
 					count = count + 1
 				except KeyError:
 					pass
