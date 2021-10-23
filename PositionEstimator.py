@@ -35,10 +35,7 @@ ARUCO_DICT = {
 }
 
 # define all known tags, together with their x, y, z positions.
-markerDict = {
-				1: [2.04,1.64,0.4],
-				2: [4,5,6]
-			}
+markerDict = {}
 
 
 
@@ -46,7 +43,7 @@ def checkFileExistence(path):
 	exists = os.path.exists(path)
 
 	if not exists:
-		sys.exit("Calibration file at path: " + path + " does not exist :(")
+		sys.exit("File at path: " + path + " does not exist :(")
 
 def scaleCameraMatrix(mtx, newWidth, calibWidth=1920):
 	scale = newWidth / calibWidth
@@ -75,8 +72,20 @@ def getArguments():
 	parser.add_argument("-t", "--type", type = str, default = "DICT_4X4_50", help = "(optional) Type of ArUco tags")
 	parser.add_argument('-c', "--calibration", type = str, default = "calibration", help='(optional) Path to camera calibration file')
 	parser.add_argument('-s', "--size", type = float, default = 0.1, help='(optional) Size of the markers in meters')
+	parser.add_argument('-p', "--positions", type = str, default = "positions.txt", help='(optional) Path to file with markers positions')
 
 	return parser.parse_args()
+
+def loadMarkersPositions(path):
+	with open(path) as f:
+		for line in f:
+			(key, val) = line.split()
+			a_list = val.split(',')
+			map_object = map(float, a_list)
+
+			list_of_integers = list(map_object)
+			markerDict[int(key)] = list_of_integers
+
 
 
 def doMagic(mtx, dist, dictionary, params, markerSize):
@@ -89,6 +98,11 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 		frame = imutils.resize(frame, width=frameWidth)
 
 		corners, ids, _ = cv2.aruco.detectMarkers(frame, dictionary, parameters=params)
+
+		x = 0
+		y = 0
+		z = 0
+		count = 0
 
 		# if any markers have been detected
 		if len(corners) > 0:
@@ -107,14 +121,20 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 				cameraTranslationVector = cv2.transpose(-dst) @ tvec[0][0]
 
 				try:
-					x = markerDict[id][0] + cameraTranslationVector[0]
-					y = markerDict[id][1] + cameraTranslationVector[1]
-					z = markerDict[id][2] + cameraTranslationVector[2]
-					print(x, y, z, sep=" ")
+					x = x + markerDict[id][0] + cameraTranslationVector[2]
+					y = y + markerDict[id][1] + cameraTranslationVector[0]
+					z = z + markerDict[id][2] + cameraTranslationVector[1]
+
+					print(id, markerDict[id][0] + cameraTranslationVector[0], markerDict[id][1] + cameraTranslationVector[1], markerDict[id][2] + cameraTranslationVector[2], sep = " ")
+					count = count + 1
 				except KeyError:
 					pass
 
-				print('')
+			if count > 0:
+				print()
+				print(x / count, y / count, z / count, sep = " ")
+				print()
+				print()
 
 
 		cv2.imshow("Frame", frame)
@@ -130,11 +150,11 @@ def doMagic(mtx, dist, dictionary, params, markerSize):
 def main():
 	args = getArguments()
 	# Determine path to camera calibration file.
-	path = args.calibration if args.calibration[0] == '\\' else os.getcwd() + '\\' + args.calibration
+	calibrationPath = args.calibration if args.calibration[0] == '\\' else os.getcwd() + '\\' + args.calibration
 
     # Load camera calibration.
-	checkFileExistence(path)
-	mtx, dist = loadCalibrationData(path)
+	checkFileExistence(calibrationPath)
+	mtx, dist = loadCalibrationData(calibrationPath)
 
 	# Prepare aruco dictionary
 	checkArucoDictionaryExistence(args.type)
@@ -145,9 +165,13 @@ def main():
 	params.cornerRefinementMethod = 3
 	params.errorCorrectionRate = 0.2
 
+	# Determine path to marker's positions file.
+	positionsFile = args.positions if args.positions[0] == '\\' else os.getcwd() + '\\' + args.positions
+
+	# Load marker's positions
+	loadMarkersPositions(args.positions)
 
 	doMagic(mtx, dist, dictionary, params, args.size)
-
 
 if __name__ == "__main__":
 	main()
