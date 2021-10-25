@@ -81,6 +81,7 @@ def getArguments():
 	parser.add_argument('-c', "--calibration", type = str, default = "calibration", help = '(optional) Path to camera calibration file')
 	parser.add_argument('-s', "--size", type = float, default = 0.1, help = '(optional) Size of the markers in meters')
 	parser.add_argument('-p', "--positions", type = str, default = "positions.txt", help = '(optional) Path to file with markers positions')
+	parser.add_argument('-cs', "--cameraSource", type = int, default = 1, help = '(optional) Integer representating camera source')
 
 	return parser.parse_args()
 
@@ -101,8 +102,8 @@ def loadMarkersPositions(path):
 
 	return markerDict
 
-def doMagic(mtx, dist, dictionary, params, markerSize, markerDict):
-	videoStream = VideoStream(src = 0).start()
+def doMagic(mtx, dist, dictionary, params, markerSize, markerDict, camSource):
+	videoStream = VideoStream(src = camSource).start()
 	time.sleep(1.0)
 
 	while True:
@@ -177,7 +178,7 @@ def main():
 	params = cv2.aruco.DetectorParameters_create()
 
 
-	doMagic(mtx, dist, dictionary, params, args.size, markerDict)
+	doMagic(mtx, dist, dictionary, params, args.size, markerDict, args.cameraSource)
 
 if __name__ == "__main__":
 	main()
