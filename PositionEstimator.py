@@ -81,7 +81,7 @@ def getArguments():
 	parser.add_argument('-c', "--calibration", type = str, default = "calibration", help = '(optional) Path to camera calibration file')
 	parser.add_argument('-s', "--size", type = float, default = 0.1, help = '(optional) Size of the markers in meters')
 	parser.add_argument('-p', "--positions", type = str, default = "positions.txt", help = '(optional) Path to file with markers positions')
-	parser.add_argument('-cs', "--cameraSource", type = int, default = 1, help = '(optional) Integer representating camera source')
+	parser.add_argument('-cs', "--cameraSource", type = int, default = 0, help = '(optional) Integer representating camera source')
 
 	return parser.parse_args()
 
@@ -131,18 +131,31 @@ def doMagic(mtx, dist, dictionary, params, markerSize, markerDict, camSource):
 				cameraTranslationVector = cv2.transpose(-dst) @ tvec[0][0]
 
 				try:
-					x = x + markerDict[id].position_x + cameraTranslationVector[markerDict[id].axis_x]
-					y = y + markerDict[id].position_y + cameraTranslationVector[markerDict[id].axis_y]
-					z = z + markerDict[id].position_z + cameraTranslationVector[markerDict[id].axis_z]
+					if markerDict[id].axis_x > 0:
+						shiftX = markerDict[id].position_x + cameraTranslationVector[markerDict[id].axis_x - 1]
+					else:
+						shiftX = markerDict[id].position_x - cameraTranslationVector[-(markerDict[id].axis_x) - 1]
+
+					if markerDict[id].axis_y > 0:
+						shiftY = markerDict[id].position_y + cameraTranslationVector[markerDict[id].axis_y - 1]
+					else:
+						shiftY = markerDict[id].position_y - cameraTranslationVector[-(markerDict[id].axis_y) - 1]
+
+					if markerDict[id].axis_z > 0:
+						shiftZ = markerDict[id].position_z + cameraTranslationVector[markerDict[id].axis_z - 1]
+					else:
+						shiftZ = markerDict[id].position_z - cameraTranslationVector[-(markerDict[id].axis_z) - 1]
+
+					x = x + shiftX
+					y = y + shiftY
+					z = z + shiftZ
 
 					count = count + 1
 				except KeyError:
 					pass
 
 			if count > 0:
-				print()
 				print(x / count, y / count, z / count, sep = " ")
-				print()
 				print()
 
 
