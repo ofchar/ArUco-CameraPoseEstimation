@@ -172,7 +172,7 @@ def doMagic(mtx, dist, dictionary, params, markerSize, markerDict, camSource):
 def main():
 	args = getArguments()
 
-    # Load camera calibration.
+	# Load camera calibration.
 	checkFileExistence(args.calibration)
 	mtx, dist = loadCalibrationData(args.calibration)
 
